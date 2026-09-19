@@ -83,6 +83,37 @@
   .stat-card.gold{border-top-color:var(--gold);}
   .stat-card.gold .num{color:var(--gold);}
 
+  /* ---------- Đếm ngược hạn nộp hồ sơ ---------- */
+  .countdown-bar{
+    max-width:1080px;margin:18px auto 0;padding:0 20px;
+  }
+  .countdown-inner{
+    background:linear-gradient(135deg,#7a2420 0%,#a3312a 100%);
+    color:#fff;border-radius:14px;padding:18px 22px;
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;
+    box-shadow:0 8px 20px rgba(163,49,42,0.25);
+  }
+  .countdown-inner.expired{
+    background:linear-gradient(135deg,#3a4750 0%,#2a333a 100%);
+    box-shadow:0 8px 20px rgba(0,0,0,0.15);
+  }
+  .cd-label{font-size:.86rem;}
+  .cd-label b{display:block;font-size:.98rem;margin-bottom:2px;}
+  .cd-label .sub{color:#ffd9d6;font-size:.78rem;}
+  .cd-timer{display:flex;gap:8px;flex-wrap:wrap;}
+  .cd-unit{
+    background:rgba(255,255,255,.14);border-radius:10px;padding:8px 12px;text-align:center;min-width:62px;
+  }
+  .cd-unit .v{font-size:1.35rem;font-weight:700;line-height:1;}
+  .cd-unit .u{font-size:.68rem;color:#ffd9d6;margin-top:2px;}
+
+  /* ---------- Bộ đếm lượt truy cập ---------- */
+  .visit-counter{
+    display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:#cfe0e8;
+    background:rgba(255,255,255,.08);padding:4px 12px;border-radius:20px;
+  }
+  .visit-counter b{color:#fff;}
+
   main{max-width:1080px;margin:0 auto;padding:40px 20px 60px;}
 
   section{margin-bottom:44px;}
@@ -240,6 +271,7 @@
       <div class="hero-meta">
         <span>📅 Công bố giá: <b>08:00, Thứ Bảy 03/10/2026</b></span>
         <span>📍 Hội trường Vietinbank – CN Quảng Trị, 236 Hùng Vương</span>
+        <span class="visit-counter">👁️ Lượt truy cập: <b id="visitCount">…</b></span>
       </div>
     </div>
   </div>
@@ -262,6 +294,22 @@
   <div class="stat-card">
     <div class="num">6 dự án</div>
     <div class="lbl">Thuộc 4 khu đô thị / tuyến đường</div>
+  </div>
+</div>
+
+<!-- Đếm ngược hạn nộp hồ sơ -->
+<div class="countdown-bar">
+  <div class="countdown-inner" id="countdownBox">
+    <div class="cd-label">
+      <b id="cdTitle">⏳ Thời gian còn lại để nộp hồ sơ, tiền đặt trước &amp; phiếu trả giá</b>
+      <span class="sub">Hạn chót: 17:30, Thứ Tư 30/9/2026</span>
+    </div>
+    <div class="cd-timer" id="cdTimer">
+      <div class="cd-unit"><div class="v" id="cdDays">--</div><div class="u">ngày</div></div>
+      <div class="cd-unit"><div class="v" id="cdHours">--</div><div class="u">giờ</div></div>
+      <div class="cd-unit"><div class="v" id="cdMins">--</div><div class="u">phút</div></div>
+      <div class="cd-unit"><div class="v" id="cdSecs">--</div><div class="u">giây</div></div>
+    </div>
   </div>
 </div>
 
@@ -601,6 +649,54 @@
       setTimeout(()=>{ btn.textContent = old; }, 1500);
     });
   }
+
+  // ---------- Đếm ngược hạn nộp hồ sơ (17:30, 30/9/2026) ----------
+  const deadline = new Date(2026, 8, 30, 17, 30, 0).getTime(); // tháng 8 = tháng 9 (0-index)
+  function updateCountdown(){
+    const now = Date.now();
+    const diff = deadline - now;
+    const box = document.getElementById('countdownBox');
+    const title = document.getElementById('cdTitle');
+    if(diff <= 0){
+      box.classList.add('expired');
+      title.textContent = '⏹ Đã hết hạn nộp hồ sơ, tiền đặt trước và phiếu trả giá';
+      document.getElementById('cdTimer').style.display = 'none';
+      return;
+    }
+    const d = Math.floor(diff/(1000*60*60*24));
+    const h = Math.floor((diff/(1000*60*60))%24);
+    const m = Math.floor((diff/(1000*60))%60);
+    const s = Math.floor((diff/1000)%60);
+    document.getElementById('cdDays').textContent = d;
+    document.getElementById('cdHours').textContent = String(h).padStart(2,'0');
+    document.getElementById('cdMins').textContent = String(m).padStart(2,'0');
+    document.getElementById('cdSecs').textContent = String(s).padStart(2,'0');
+  }
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+
+  // ---------- Bộ đếm lượt truy cập ----------
+  // Dùng dịch vụ đếm công khai miễn phí (CountAPI). Nếu không có mạng, dùng số đếm cục bộ (localStorage) làm dự phòng.
+  (function(){
+    const el = document.getElementById('visitCount');
+    const namespace = 'quangtri-quydat-phianam';
+    const key = 'thongbao-daugia-12thua';
+    fetch(`https://api.countapi.xyz/hit/${namespace}/${key}`)
+      .then(res => res.json())
+      .then(data => {
+        if(data && typeof data.value !== 'undefined'){
+          el.textContent = data.value.toLocaleString('vi-VN');
+        } else {
+          throw new Error('no value');
+        }
+      })
+      .catch(() => {
+        // Dự phòng: đếm cục bộ trên trình duyệt này (không phải số toàn cục)
+        let n = parseInt(localStorage.getItem('daugia_visit_local') || '0', 10) + 1;
+        localStorage.setItem('daugia_visit_local', n);
+        el.textContent = n.toLocaleString('vi-VN') + ' (cục bộ)';
+      });
+  })();
 </script>
 
 </body>
